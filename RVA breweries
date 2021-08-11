@@ -1,0 +1,60 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+)
+
+type rawData struct {
+	Type    string `json:"brewery_type"`
+	Name    string `json:"name"`
+	Website string `json:"website_url"`
+}
+
+type formattedBreweries struct {
+	Type           string
+	BreweryDetails []brewery
+}
+
+type brewery struct {
+	Name    string `json:"name"`
+	Website string `json:"website_url"`
+}
+
+func main() {
+
+	url := "https://api.openbrewerydb.org/breweries?by_state=virginia&by_city=richmond&sort=type,name:asc"
+
+	req, _ := http.NewRequest("GET", url, nil)
+
+	res, _ := http.DefaultClient.Do(req)
+
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+
+	var rawData []rawData
+
+	err := json.Unmarshal(body, &rawData)
+	if err != nil {
+		log.Fatalln("failed:", err)
+	}
+
+	var outputlist = make(map[string]formattedBreweries)
+
+	for _, inp := range rawData {
+		outputlist[inp.Type] = formattedBreweries{inp.Type, append(outputlist[inp.Type].BreweryDetails, brewery{inp.Name, inp.Website})}
+	}
+
+	var outputs []formattedBreweries
+
+	for _, outp := range outputlist {
+		outputs = append(outputs, outp)
+	}
+
+	jsonoutput, err := json.Marshal(outputs)
+
+	fmt.Println(string(jsonoutput))
+}
